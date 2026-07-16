@@ -218,6 +218,9 @@
       <label>Pilih Kategori Permainan</label>
       <div class="select-grid" id="categoryGrid"></div>
 
+      <label>Jumlah Soal</label>
+      <div class="select-grid" id="questionCountGrid"></div>
+
       <div class="btn-row">
         <button class="btn btn-primary btn-block" onclick="createRoomFlow()" id="createRoomBtn" disabled>Buat Ruangan 🎟️</button>
       </div>
@@ -498,7 +501,9 @@ function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=
 function buildQuestions(categoryKey, count){
   const cat = CATEGORIES[categoryKey];
   const items = ITEMS[categoryKey];
-  const chosen = shuffle(items).slice(0, Math.min(count, items.length));
+  let pool = [];
+  while(pool.length < count){ pool = pool.concat(shuffle(items)); }
+  const chosen = pool.slice(0, count);
   return chosen.map(correctItem=>{
     const distractors = shuffle(items.filter(i=>i.name!==correctItem.name)).slice(0,3);
     const options = shuffle([correctItem, ...distractors]);
@@ -551,7 +556,7 @@ function genCode(){
 const App = {
   teacherName:'', role:null,
   roomCode:'', kidName:'', kidId:'',
-  selectedGameType:null, selectedCategory:null,
+  selectedGameType:null, selectedCategory:null, selectedQuestionCount:null,
   listenerRef:null, listenerCb:null, timerTick:null,
   lastKnownIndex:-1, answeredThisQ:false,
   currentRoom:null, memory:null, memoryStarted:false, autoEndTriggered:false
@@ -581,8 +586,9 @@ function teacherLogin(){
 function goDashboard(){
   stopSync();
   document.getElementById('dashGreeting').textContent = 'Halo, '+App.teacherName+' 👋';
-  App.selectedGameType='kuis'; App.selectedCategory=null;
+  App.selectedGameType='kuis'; App.selectedCategory=null; App.selectedQuestionCount=null;
   renderCategoryGridForType('kuis');
+  renderQuestionCountGrid();
   document.getElementById('createRoomBtn').disabled=true;
   showScreen('screen-teacher-dashboard');
   const hist = loadHistory();
@@ -621,8 +627,21 @@ function selectCategory(key){
   document.getElementById('cat-'+key).classList.add('selected');
   updateCreateBtn();
 }
+const QUESTION_COUNT_OPTIONS = [5,10,15,20];
+function renderQuestionCountGrid(){
+  const grid = document.getElementById('questionCountGrid');
+  grid.innerHTML = QUESTION_COUNT_OPTIONS.map(n=>
+    `<div class="opt-card" id="qcount-${n}" onclick="selectQuestionCount(${n})"><span class="emoji">📝</span>${n} Soal</div>`
+  ).join('');
+}
+function selectQuestionCount(n){
+  App.selectedQuestionCount = n;
+  document.querySelectorAll('#questionCountGrid .opt-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('qcount-'+n).classList.add('selected');
+  updateCreateBtn();
+}
 function updateCreateBtn(){
-  document.getElementById('createRoomBtn').disabled = !App.selectedCategory;
+  document.getElementById('createRoomBtn').disabled = !(App.selectedCategory && App.selectedQuestionCount);
 }
 
 async function createRoomFlow(){
@@ -640,7 +659,8 @@ async function createRoomFlow(){
       participants:{}, createdAt:Date.now()
     };
   } else {
-    const questions = App.selectedCategory==='hitung' ? buildCountingQuestions(5) : buildQuestions(App.selectedCategory, 5);
+    const qCount = App.selectedQuestionCount || 5;
+    const questions = App.selectedCategory==='hitung' ? buildCountingQuestions(qCount) : buildQuestions(App.selectedCategory, qCount);
     room = {
       code, teacherName:App.teacherName, gameType:App.selectedGameType, categoryKey:App.selectedCategory,
       status:'waiting', currentIndex:0, questions,
