@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kelas Ceria — Kuis & Game Seru untuk TK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --cream:#FFF8EC;
+    --sky:#3FC1E9;
+    --sun:#FFC93D;
+    --grass:#6FCF8F;
+    --coral:#FF6B6B;
+    --grape:#9B6EF3;
+    --ink:#2B2145;
+    --ink-soft:#5B5170;
+    --card:#FFFFFF;
+    --radius:26px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--cream);
+    font-family:'Nunito',sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+  }
+  h1,h2,h3,.display{ font-family:'Fredoka',sans-serif; font-weight:600; }
+  button{ font-family:'Nunito',sans-serif; cursor:pointer; border:none; }
+  button:focus-visible, input:focus-visible{ outline:3px solid var(--grape); outline-offset:2px; }
+  .blob{ position:fixed; border-radius:50%; filter:blur(2px); opacity:.35; z-index:0; pointer-events:none; }
+  #app{ position:relative; z-index:1; min-height:100vh; display:flex; flex-direction:column; }
+  .screen{ display:none; flex:1; flex-direction:column; align-items:center; padding:28px 18px 60px; animation:fadeIn .35s ease; }
+  .screen.active{ display:flex; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important;} }
+
+  .topbar{ width:100%; max-width:900px; display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Fredoka'; font-size:22px; font-weight:700; color:var(--ink); }
+  .brand .dot{ width:14px; height:14px; border-radius:50%; background:var(--coral); display:inline-block; }
+  .ghost-btn{ background:transparent; color:var(--ink-soft); font-weight:700; font-size:14px; padding:8px 14px; border-radius:14px; }
+  .ghost-btn:hover{ background:rgba(43,33,69,.06); }
+
+  .card{ background:var(--card); border-radius:var(--radius); box-shadow:0 10px 30px rgba(43,33,69,.08); padding:34px; width:100%; max-width:560px; }
+  .card.wide{ max-width:820px; }
+
+  .hero-title{ font-size:40px; line-height:1.05; margin:6px 0 8px; }
+  .hero-sub{ color:var(--ink-soft); font-size:17px; margin-bottom:26px; max-width:520px; }
+
+  .role-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; width:100%; max-width:640px; margin-top:8px; }
+  @media (max-width:520px){ .role-grid{ grid-template-columns:1fr; } }
+  .role-card{ background:var(--card); border-radius:22px; padding:28px 20px; text-align:center; box-shadow:0 10px 24px rgba(43,33,69,.08); border:3px solid transparent; transition:transform .15s ease, border-color .15s ease; }
+  .role-card:hover{ transform:translateY(-4px); border-color:var(--sun); }
+  .role-card .emoji{ font-size:52px; display:block; margin-bottom:10px; }
+  .role-card h3{ margin:0 0 6px; font-size:20px; }
+  .role-card p{ color:var(--ink-soft); font-size:14px; margin:0 0 16px; }
+
+  label{ display:block; font-weight:800; font-size:14px; margin:14px 0 6px; color:var(--ink); }
+  input[type=text]{ width:100%; padding:14px 16px; border-radius:16px; border:2.5px solid #ECE6F7; font-size:17px; font-family:'Nunito'; background:#FBFAFF; }
+  input[type=text]:focus{ border-color:var(--grape); }
+  input.code-input{ text-transform:uppercase; letter-spacing:6px; font-family:'Fredoka'; font-size:24px; text-align:center; }
+
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:15px 26px; border-radius:18px; font-weight:800; font-size:16px; font-family:'Fredoka'; transition:transform .12s ease, box-shadow .12s ease; }
+  .btn:active{ transform:scale(.97); }
+  .btn-primary{ background:var(--grape); color:#fff; box-shadow:0 8px 0 #7748c9; }
+  .btn-primary:hover{ box-shadow:0 6px 0 #7748c9; transform:translateY(2px); }
+  .btn-sun{ background:var(--sun); color:#5b3d00; box-shadow:0 8px 0 #d9a51e; }
+  .btn-sun:hover{ box-shadow:0 6px 0 #d9a51e; transform:translateY(2px); }
+  .btn-sky{ background:var(--sky); color:#003a4d; box-shadow:0 8px 0 #279bbd; }
+  .btn-coral{ background:var(--coral); color:#fff; box-shadow:0 8px 0 #d94c4c; }
+  .btn-block{ width:100%; }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; box-shadow:none; transform:none; }
+  .btn-row{ display:flex; gap:12px; flex-wrap:wrap; margin-top:18px; }
+
+  .pill{ display:inline-block; padding:5px 14px; border-radius:999px; background:#F1ECFB; color:var(--grape); font-weight:800; font-size:12px; letter-spacing:.5px; }
+  .error-msg{ background:#FFEDED; color:#B23A3A; padding:10px 14px; border-radius:12px; font-weight:700; font-size:14px; margin-top:12px; }
+
+  .select-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; margin-top:8px; }
+  .opt-card{ background:#FBFAFF; border:2.5px solid #ECE6F7; border-radius:18px; padding:16px 10px; text-align:center; font-weight:800; font-size:14px; }
+  .opt-card .emoji{ font-size:34px; display:block; margin-bottom:6px; }
+  .opt-card .desc{ font-weight:600; font-size:11px; color:var(--ink-soft); margin-top:4px; }
+  .opt-card.selected{ border-color:var(--grape); background:#F1ECFB; }
+
+  /* room ticket */
+  .ticket{ position:relative; background:linear-gradient(135deg,var(--grape),#7748c9); color:#fff; border-radius:24px; padding:26px 30px; text-align:center; margin:18px 0; box-shadow:0 10px 26px rgba(123,72,201,.35); }
+  .ticket:before,.ticket:after{ content:''; position:absolute; width:26px; height:26px; background:var(--cream); border-radius:50%; top:50%; transform:translateY(-50%); }
+  .ticket:before{ left:-13px; } .ticket:after{ right:-13px; }
+  .ticket .label{ font-size:12px; letter-spacing:2px; opacity:.85; font-weight:800; }
+  .ticket .code{ font-family:'Fredoka'; font-size:44px; letter-spacing:10px; margin:6px 0; }
+
+  .participant-list{ display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; min-height:44px; }
+  .chip{ background:#F1ECFB; color:var(--grape); font-weight:800; padding:8px 14px; border-radius:999px; font-size:14px; display:flex; align-items:center; gap:6px; }
+
+  .qcard{ text-align:center; width:100%; }
+  .visual-wrap{ display:flex; align-items:center; justify-content:center; margin:14px 0 22px; height:150px; }
+  .visual-emoji{ font-size:100px; line-height:1; }
+  .visual-number{ font-family:'Fredoka'; font-size:110px; color:var(--grape); }
+  .visual-color{ width:130px; height:130px; border-radius:24px; box-shadow:0 8px 20px rgba(0,0,0,.15); }
+  .visual-count-grid{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-content:center; max-width:300px; }
+  .visual-count-grid span{ font-size:38px; line-height:1; }
+  .shape{ background:var(--grape); }
+  .shape-circle{ width:120px; height:120px; border-radius:50%; }
+  .shape-square{ width:120px; height:120px; border-radius:14px; }
+  .shape-rectangle{ width:160px; height:100px; border-radius:14px; }
+  .shape-triangle{ width:0; height:0; border-left:65px solid transparent; border-right:65px solid transparent; border-bottom:112px solid var(--grape); background:none; }
+  .shape-star{ width:130px; height:130px; clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%); }
+
+  .timerbar-outer{ width:100%; height:14px; background:#ECE6F7; border-radius:999px; overflow:hidden; margin-bottom:22px; }
+  .timerbar-inner{ height:100%; background:var(--sun); border-radius:999px; transition:width .2s linear; }
+
+  .answer-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; width:100%; }
+  @media (max-width:480px){ .answer-grid{ grid-template-columns:1fr; } }
+  .answer-btn{ padding:20px 14px; border-radius:20px; font-family:'Fredoka'; font-size:18px; font-weight:600; color:#fff; box-shadow:0 6px 0 rgba(0,0,0,.15); transition:transform .12s ease; }
+  .answer-btn:active{ transform:scale(.96); }
+  .answer-btn:nth-child(4n+1){ background:var(--sky); }
+  .answer-btn:nth-child(4n+2){ background:var(--coral); }
+  .answer-btn:nth-child(4n+3){ background:var(--grass); }
+  .answer-btn:nth-child(4n+4){ background:var(--sun); color:#5b3d00; }
+  .answer-btn.correct{ background:var(--grass) !important; color:#fff !important; outline:4px solid #2e9e58; }
+  .answer-btn.wrong{ background:#e0dbe8 !important; color:#8b849a !important; opacity:.7; }
+  .answer-btn:disabled{ cursor:default; }
+
+  .balloon-btn{ position:relative; border-radius:50% 50% 50% 50% / 60% 60% 40% 40%; padding:26px 10px 30px; font-size:24px; }
+  .balloon-btn:after{ content:''; position:absolute; bottom:-12px; left:50%; transform:translateX(-50%); width:2px; height:12px; background:rgba(0,0,0,.2); }
+
+  .feedback-badge{ font-size:80px; margin:10px 0; }
+  .score-float{ font-family:'Fredoka'; font-size:28px; color:var(--grape); }
+
+  table.results{ width:100%; border-collapse:collapse; margin-top:14px; }
+  table.results th{ text-align:left; font-size:12px; color:var(--ink-soft); padding:6px 10px; }
+  table.results td{ padding:12px 10px; background:#FBFAFF; font-weight:700; }
+  table.results tr td:first-child{ border-radius:14px 0 0 14px; }
+  table.results tr td:last-child{ border-radius:0 14px 14px 0; text-align:right; color:var(--grape); }
+  .rank-badge{ font-size:20px; margin-right:6px; }
+
+  .certificate{ border:4px dashed var(--sun); border-radius:22px; padding:30px; text-align:center; background:#FFFDF6; margin-top:18px; }
+  .certificate h2{ margin:6px 0; font-size:26px; }
+  .certificate .name{ font-size:30px; color:var(--grape); margin:10px 0; }
+  .certificate .stars{ font-size:30px; letter-spacing:6px; margin:10px 0; }
+
+  .waiting-dots span{ animation:bounce 1.2s infinite; display:inline-block; }
+  .waiting-dots span:nth-child(2){ animation-delay:.15s; } .waiting-dots span:nth-child(3){ animation-delay:.3s; }
+  @keyframes bounce{ 0%,60%,100%{ transform:translateY(0);} 30%{ transform:translateY(-8px);} }
+
+  .footnote{ margin-top:26px; color:var(--ink-soft); font-size:13px; text-align:center; max-width:520px; }
+  .row-between{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .muted{ color:var(--ink-soft); font-size:14px; }
+  .history-item{ display:flex; justify-content:space-between; padding:12px 14px; background:#FBFAFF; border-radius:14px; margin-bottom:8px; font-size:14px; gap:10px; }
+  .conn-badge{ font-size:12px; font-weight:800; padding:4px 10px; border-radius:999px; }
+  .conn-ok{ background:#E6F8ED; color:#1E8A4C; }
+  .conn-bad{ background:#FFEDED; color:#B23A3A; }
+
+  .memory-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; width:100%; margin:16px 0; }
+  @media (max-width:480px){ .memory-grid{ grid-template-columns:repeat(3,1fr); } }
+  .memory-card{ aspect-ratio:1/1; border-radius:16px; background:var(--grape); display:flex; align-items:center; justify-content:center; font-size:30px; cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,.12); transition:transform .12s ease; }
+  .memory-card:active{ transform:scale(.95); }
+  .memory-card.open{ background:#FBFAFF; box-shadow:0 4px 0 rgba(0,0,0,.05) inset; }
+  .memory-card.matched{ background:#E6F8ED; opacity:.6; cursor:default; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- HOME -->
+  <section class="screen active" id="screen-home">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div><span class="conn-badge" id="connBadge">Menghubungkan…</span></div>
+    <div style="text-align:center; margin-top:20px;">
+      <span class="pill">KUIS &amp; GAME MULTIPLAYER TK</span>
+      <h1 class="hero-title">Belajar sambil main,<br>rame-rame di kelas 🎈</h1>
+      <p class="hero-sub">Guru buat ruangan permainan, anak-anak gabung pakai kode, lalu semua main bareng secara langsung dari HP, tablet, atau komputer.</p>
+    </div>
+    <div class="role-grid">
+      <div class="role-card">
+        <span class="emoji">🍎</span>
+        <h3>Saya Guru</h3>
+        <p>Buat ruangan, pilih permainan, dan pandu jalannya kelas.</p>
+        <button class="btn btn-primary btn-block" onclick="goTeacherLogin()">Masuk sebagai Guru</button>
+      </div>
+      <div class="role-card">
+        <span class="emoji">🧒</span>
+        <h3>Saya Siswa</h3>
+        <p>Punya kode ruangan dari gurumu? Gabung di sini!</p>
+        <button class="btn btn-sun btn-block" onclick="goKidJoin()">Gabung Bermain</button>
+      </div>
+    </div>
+    <p class="footnote">Tersambung real-time lewat Firebase — guru dan anak bisa main dari perangkat berbeda sekaligus.</p>
+  </section>
+
+  <!-- TEACHER LOGIN -->
+  <section class="screen" id="screen-teacher-login">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div><button class="ghost-btn" onclick="goHome()">← Beranda</button></div>
+    <div class="card">
+      <h2>Masuk sebagai Guru</h2>
+      <p class="muted">Cukup masukkan nama, tidak perlu kata sandi untuk demo ini.</p>
+      <label for="teacherNameInput">Nama Guru</label>
+      <input type="text" id="teacherNameInput" placeholder="Bu Sinta" maxlength="30">
+      <div class="btn-row">
+        <button class="btn btn-primary btn-block" onclick="teacherLogin()">Masuk ke Dashboard</button>
+      </div>
+      <div id="teacherLoginError"></div>
+    </div>
+  </section>
+
+  <!-- TEACHER DASHBOARD -->
+  <section class="screen" id="screen-teacher-dashboard">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div><button class="ghost-btn" onclick="goHome()">Keluar</button></div>
+    <div class="card wide">
+      <h2 id="dashGreeting">Halo, Guru 👋</h2>
+      <p class="muted">Pilih jenis permainan dan kategori, lalu buat ruangan baru.</p>
+
+      <label>Pilih Jenis Permainan</label>
+      <div class="select-grid" id="gameTypeGrid"></div>
+
+      <label>Pilih Kategori</label>
+      <div class="select-grid" id="categoryGrid"><span class="muted">Pilih jenis permainan dulu ya.</span></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary btn-block" onclick="createRoomFlow()" id="createRoomBtn" disabled>Buat Ruangan 🎟️</button>
+      </div>
+
+      <div style="margin-top:30px;">
+        <h3 style="margin-bottom:10px;">Riwayat Permainan Terakhir</h3>
+        <div id="historyList" class="muted">Belum ada riwayat.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEACHER LOBBY -->
+  <section class="screen" id="screen-teacher-lobby">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div><button class="ghost-btn" onclick="cancelToDashboard()">Batalkan</button></div>
+    <div class="card wide">
+      <h2 id="lobbyTitle">Ruangan Siap!</h2>
+      <p class="muted">Minta anak-anak membuka Kelas Ceria dan memasukkan kode ini.</p>
+      <div class="ticket">
+        <div class="label">KODE RUANGAN</div>
+        <div class="code" id="lobbyCode">-----</div>
+        <div class="label" id="lobbyCategoryTheme">-</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sky" onclick="copyRoomCode()">📋 Salin Kode</button>
+      </div>
+      <div class="row-between" style="margin-top:22px;">
+        <h3 style="margin:0;">Peserta Bergabung</h3>
+        <span class="pill" id="lobbyCount">0 anak</span>
+      </div>
+      <div class="participant-list" id="lobbyParticipants"><span class="muted">Menunggu anak-anak bergabung…</span></div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-block" id="startGameBtn" onclick="handleStartGame()" disabled>Mulai Permainan 🚀</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEACHER PLAY CONTROL -->
+  <section class="screen" id="screen-teacher-play">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div><span class="pill" id="teacherPlayCode">-----</span></div>
+    <div class="card wide">
+      <div class="row-between">
+        <span class="muted" id="teacherQProgress">Soal 1/5</span>
+        <span class="pill" id="teacherAnsweredCount">0/0 menjawab</span>
+      </div>
+      <div class="qcard" id="teacherQuizPanel">
+        <h2 id="teacherQPrompt">-</h2>
+        <div class="visual-wrap" id="teacherQVisual"></div>
+        <div class="answer-grid" id="teacherQOptions"></div>
+      </div>
+      <div id="teacherMemoryPanel" style="display:none; text-align:center;">
+        <div style="font-size:60px;">🧠</div>
+        <h2>Kartu Memori Berjalan</h2>
+        <div class="timerbar-outer"><div class="timerbar-inner" id="teacherMemoryTimerBar" style="width:100%;"></div></div>
+        <p class="muted" id="teacherMemoryStatusText">0/0 anak selesai</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-block" id="teacherNextBtn" onclick="handleNextQuestion()">Soal Berikutnya ➡️</button>
+        <button class="btn btn-coral" onclick="handleEndGame()">Akhiri Permainan</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEACHER RESULTS -->
+  <section class="screen" id="screen-teacher-results">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div></div>
+    <div class="card wide">
+      <h2>🎉 Permainan Selesai!</h2>
+      <p class="muted">Peringkat akhir kelas:</p>
+      <table class="results" id="teacherResultsTable"></table>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-block" onclick="goDashboard()">Kembali ke Dashboard</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- KID JOIN -->
+  <section class="screen" id="screen-kid-join">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div><button class="ghost-btn" onclick="goHome()">← Beranda</button></div>
+    <div class="card">
+      <h2>Gabung Bermain 🎮</h2>
+      <label for="kidCodeInput">Kode Ruangan</label>
+      <input type="text" class="code-input" id="kidCodeInput" maxlength="5" placeholder="ABCDE">
+      <label for="kidNameInput">Nama Kamu</label>
+      <input type="text" id="kidNameInput" maxlength="20" placeholder="Contoh: Kiki">
+      <div class="btn-row">
+        <button class="btn btn-sun btn-block" onclick="handleKidJoin()">Gabung! 🙌</button>
+      </div>
+      <div id="kidJoinError"></div>
+    </div>
+  </section>
+
+  <!-- KID WAITING -->
+  <section class="screen" id="screen-kid-wait">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div></div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:70px;">🧸</div>
+      <h2>Halo, <span id="kidWaitName">Adik</span>!</h2>
+      <p class="muted waiting-dots">Menunggu gurumu memulai permainan<span>.</span><span>.</span><span>.</span></p>
+      <div class="row-between" style="margin-top:18px;">
+        <span class="muted">Teman lain yang gabung:</span>
+      </div>
+      <div class="participant-list" id="kidWaitParticipants"></div>
+    </div>
+  </section>
+
+  <!-- KID PLAY (KUIS / BALON) -->
+  <section class="screen" id="screen-kid-play">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div><span class="pill" id="kidScorePill">⭐ 0</span></div>
+    <div class="card">
+      <div class="timerbar-outer"><div class="timerbar-inner" id="kidTimerBar" style="width:100%;"></div></div>
+      <div class="qcard">
+        <h2 id="kidQPrompt">-</h2>
+        <div class="visual-wrap" id="kidQVisual"></div>
+      </div>
+      <div class="answer-grid" id="kidQOptions"></div>
+    </div>
+  </section>
+
+  <!-- KID PLAY (MEMORI) -->
+  <section class="screen" id="screen-kid-memory">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div><span class="pill" id="kidMemoryScorePill">🧠 Cari Pasangan</span></div>
+    <div class="card">
+      <div class="timerbar-outer"><div class="timerbar-inner" id="kidMemoryTimerBar" style="width:100%;"></div></div>
+      <div class="memory-grid" id="kidMemoryGrid"></div>
+      <div id="kidMemoryDoneMsg" style="display:none; text-align:center;"></div>
+    </div>
+  </section>
+
+  <!-- KID FEEDBACK -->
+  <section class="screen" id="screen-kid-feedback">
+    <div class="card" style="text-align:center;">
+      <div class="feedback-badge" id="kidFeedbackEmoji">✅</div>
+      <h2 id="kidFeedbackText">Benar!</h2>
+      <div class="score-float" id="kidFeedbackPoints">+100 ⭐</div>
+      <p class="muted waiting-dots" style="margin-top:18px;">Menunggu soal berikutnya<span>.</span><span>.</span><span>.</span></p>
+    </div>
+  </section>
+
+  <!-- KID RESULTS -->
+  <section class="screen" id="screen-kid-results">
+    <div class="topbar"><div class="brand"><span class="dot"></span>Kelas Ceria</div></div>
+    <div class="card wide">
+      <h2>🏁 Permainan Selesai!</h2>
+      <table class="results" id="kidResultsTable"></table>
+      <div class="certificate" id="kidCertificate"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-block" onclick="goHome()">Selesai</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ============ DECOR ============ */
+(function decor(){
+  const colors=['#3FC1E9','#FFC93D','#6FCF8F','#FF6B6B','#9B6EF3'];
+  const wrap=document.createElement('div');
+  for(let i=0;i<6;i++){
+    const b=document.createElement('div');
+    const s=80+Math.random()*160;
+    b.className='blob';
+    b.style.width=s+'px'; b.style.height=s+'px';
+    b.style.background=colors[i%colors.length];
+    b.style.top=(Math.random()*100)+'vh';
+    b.style.left=(Math.random()*100)+'vw';
+    wrap.appendChild(b);
+  }
+  document.body.appendChild(wrap);
+})();
+
+/* ============ FIREBASE ============ */
+const firebaseConfig = {
+  apiKey: "AIzaSyDVlEDtwNpLF5MSOAFXxb4K89oCNqutPC8",
+  authDomain: "kelas-baca-11ee5.firebaseapp.com",
+  databaseURL: "https://kelas-baca-11ee5-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "kelas-baca-11ee5",
+  storageBucket: "kelas-baca-11ee5.firebasestorage.app",
+  messagingSenderId: "217571150141",
+  appId: "1:217571150141:web:912668f9abcc23001ddd54"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+db.ref('.info/connected').on('value', (snap)=>{
+  const badge = document.getElementById('connBadge');
+  if(!badge) return;
+  if(snap.val()===true){ badge.textContent='Tersambung ●'; badge.className='conn-badge conn-ok'; }
+  else{ badge.textContent='Menghubungkan…'; badge.className='conn-badge conn-bad'; }
+});
+
+function roomRef(code){ return db.ref('rooms/'+code); }
+
+async function getRoom(code){
+  try{ const snap = await roomRef(code).get(); return snap.exists()? snap.val() : null; }
+  catch(e){ console.error('Firebase getRoom error', e); return null; }
+}
+async function setRoom(code, room){
+  try{ await roomRef(code).set(room); return true; }
+  catch(e){ console.error('Firebase setRoom error', e); return false; }
+}
+async function updateRoom(code, updates){
+  try{ await roomRef(code).update(updates); return true; }
+  catch(e){ console.error('Firebase updateRoom error', e); return false; }
+}
+
+function listenRoom(code, onChange){
+  unlistenRoom();
+  const ref = roomRef(code);
+  const cb = (snap)=> onChange(snap.exists()? snap.val() : null);
+  ref.on('value', cb);
+  App.listenerRef = ref; App.listenerCb = cb;
+}
+function unlistenRoom(){
+  if(App.listenerRef && App.listenerCb){ App.listenerRef.off('value', App.listenerCb); }
+  App.listenerRef=null; App.listenerCb=null;
+}
+function stopSync(){
+  unlistenRoom();
+  if(App.timerTick){ clearInterval(App.timerTick); App.timerTick=null; }
+}
+
+function saveHistory(entry){
+  try{
+    const key = 'kelasCeriaHistory_'+App.teacherName;
+    let list = JSON.parse(localStorage.getItem(key) || '[]');
+    list.unshift(entry);
+    list = list.slice(0,6);
+    localStorage.setItem(key, JSON.stringify(list));
+  }catch(e){ console.error(e); }
+}
+function loadHistory(){
+  try{
+    const key = 'kelasCeriaHistory_'+App.teacherName;
+    return JSON.parse(localStorage.getItem(key) || '[]');
+  }catch(e){ return []; }
+}
+
+/* ============ DATA ============ */
+const ITEMS = {
+  hewan:[{name:'Gajah',v:'🐘'},{name:'Jerapah',v:'🦒'},{name:'Singa',v:'🦁'},{name:'Kucing',v:'🐱'},
+         {name:'Anjing',v:'🐶'},{name:'Ayam',v:'🐔'},{name:'Ikan',v:'🐠'},{name:'Kupu-kupu',v:'🦋'},
+         {name:'Bebek',v:'🦆'},{name:'Kelinci',v:'🐰'}],
+  angka:[{name:'1',v:'1'},{name:'2',v:'2'},{name:'3',v:'3'},{name:'4',v:'4'},{name:'5',v:'5'},
+         {name:'6',v:'6'},{name:'7',v:'7'},{name:'8',v:'8'},{name:'9',v:'9'},{name:'10',v:'10'}],
+  warna:[{name:'Merah',v:'#FF6B6B'},{name:'Biru',v:'#3FC1E9'},{name:'Kuning',v:'#FFC93D'},
+         {name:'Hijau',v:'#6FCF8F'},{name:'Ungu',v:'#9B6EF3'},{name:'Oranye',v:'#FF9F43'},{name:'Merah Muda',v:'#FF8FB1'}],
+  bentuk:[{name:'Lingkaran',v:'circle'},{name:'Persegi',v:'square'},{name:'Segitiga',v:'triangle'},
+          {name:'Bintang',v:'star'},{name:'Persegi Panjang',v:'rectangle'}],
+  buah:[{name:'Apel',v:'🍎'},{name:'Pisang',v:'🍌'},{name:'Anggur',v:'🍇'},{name:'Semangka',v:'🍉'},
+        {name:'Wortel',v:'🥕'},{name:'Brokoli',v:'🥦'},{name:'Tomat',v:'🍅'},{name:'Jagung',v:'🌽'},
+        {name:'Stroberi',v:'🍓'},{name:'Nanas',v:'🍍'}],
+  huruf:'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l=>({name:l, v:l})),
+  benda:[{name:'Gunung',v:'🏔️'},{name:'Pohon',v:'🌳'},{name:'Bunga',v:'🌸'},{name:'Matahari',v:'☀️'},
+         {name:'Awan',v:'☁️'},{name:'Rumah',v:'🏠'},{name:'Mobil',v:'🚗'},{name:'Bulan',v:'🌙'},
+         {name:'Bintang',v:'⭐'},{name:'Pelangi',v:'🌈'}]
+};
+
+const CATEGORIES = {
+  hewan:{label:'Tebak Gambar Hewan', icon:'🦁', visualType:'emoji', prompt:'Hewan apakah ini?'},
+  angka:{label:'Mengenal Angka', icon:'🔢', visualType:'number', prompt:'Angka berapakah ini?'},
+  warna:{label:'Mengenal Warna', icon:'🎨', visualType:'color', prompt:'Warna apakah ini?'},
+  bentuk:{label:'Tebak Bentuk', icon:'🔺', visualType:'shape', prompt:'Bentuk apakah ini?'},
+  buah:{label:'Buah & Sayur', icon:'🍎', visualType:'emoji', prompt:'Ini gambar apa?'},
+  huruf:{label:'Mengenal Huruf', icon:'🔤', visualType:'number', prompt:'Huruf apakah ini?'},
+  benda:{label:'Tebak Gambar', icon:'🖼️', visualType:'emoji', prompt:'Ini gambar apa?'},
+  hitung:{label:'Menghitung Benda', icon:'🔢', visualType:'count', prompt:'Ada berapa banyak ini?'}
+};
+
+const GAME_TYPES = {
+  kuis:{label:'Kuis Pilihan Ganda', icon:'❓', desc:'Pilih jawaban yang benar', categories:['benda','warna','bentuk','hitung','huruf','angka','hewan','buah']},
+  balon:{label:'Balon Huruf & Angka', icon:'🎈', desc:'Pecahkan balon yang tepat', categories:['huruf','angka']},
+  memori:{label:'Kartu Memori', icon:'🧠', desc:'Cari pasangan kartu', categories:['hewan','buah']}
+};
+
+function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function buildQuestions(categoryKey, count){
+  const cat = CATEGORIES[categoryKey];
+  const items = ITEMS[categoryKey];
+  const chosen = shuffle(items).slice(0, Math.min(count, items.length));
+  return chosen.map(correctItem=>{
+    const distractors = shuffle(items.filter(i=>i.name!==correctItem.name)).slice(0,3);
+    const options = shuffle([correctItem, ...distractors]);
+    const correctIndex = options.findIndex(o=>o.name===correctItem.name);
+    return {
+      prompt: cat.prompt,
+      type: cat.visualType,
+      visual: correctItem.v,
+      options: options.map(o=>o.name),
+      correctIndex,
+      timeLimit: 15
+    };
+  });
+}
+function buildCountingQuestions(count){
+  const emojiPool = ['🍎','🍌','⭐','🐟','🎈','🍓','🌸','🚗'];
+  const rounds = [];
+  const usedCounts = new Set();
+  for(let i=0;i<count;i++){
+    let n;
+    do{ n = 2+Math.floor(Math.random()*8); }while(usedCounts.has(n) && usedCounts.size<8);
+    usedCounts.add(n);
+    const emoji = emojiPool[Math.floor(Math.random()*emojiPool.length)];
+    const pool = []; for(let d=1;d<=10;d++){ if(d!==n) pool.push(d); }
+    const distractors = shuffle(pool).slice(0,3);
+    const options = shuffle([n, ...distractors]).map(String);
+    const correctIndex = options.indexOf(String(n));
+    rounds.push({ prompt:'Ada berapa banyak ini?', type:'count', visual: emoji.repeat(n), options, correctIndex, timeLimit:15 });
+  }
+  return rounds;
+}
+function buildMemoryCards(categoryKey, pairs){
+  const items = shuffle(ITEMS[categoryKey]).slice(0, pairs);
+  return shuffle([...items, ...items].map(i=>i.v));
+}
+
+function genId(len){
+  len = len||8;
+  const chars='ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let s=''; for(let i=0;i<len;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+function genCode(){
+  const chars='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let s=''; for(let i=0;i<5;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+/* ============ APP STATE ============ */
+const App = {
+  teacherName:'', role:null,
+  roomCode:'', kidName:'', kidId:'',
+  selectedGameType:null, selectedCategory:null,
+  listenerRef:null, listenerCb:null, timerTick:null,
+  lastKnownIndex:-1, answeredThisQ:false,
+  currentRoom:null, memory:null, memoryStarted:false, autoEndTriggered:false
+};
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ============ NAV ============ */
+function goHome(){ stopSync(); showScreen('screen-home'); }
+function goTeacherLogin(){ showScreen('screen-teacher-login'); }
+function goKidJoin(){ showScreen('screen-kid-join'); }
+
+/* ============ TEACHER: LOGIN & DASHBOARD ============ */
+function teacherLogin(){
+  const name = document.getElementById('teacherNameInput').value.trim();
+  const err = document.getElementById('teacherLoginError');
+  err.innerHTML='';
+  if(!name){ err.innerHTML='<div class="error-msg">Isi nama guru dulu ya.</div>'; return; }
+  App.teacherName = name;
+  App.role='teacher';
+  goDashboard();
+}
+
+function goDashboard(){
+  stopSync();
+  document.getElementById('dashGreeting').textContent = 'Halo, '+App.teacherName+' 👋';
+  App.selectedGameType=null; App.selectedCategory=null;
+  renderGameTypeGrid();
+  document.getElementById('categoryGrid').innerHTML = '<span class="muted">Pilih jenis permainan dulu ya.</span>';
+  document.getElementById('createRoomBtn').disabled=true;
+  showScreen('screen-teacher-dashboard');
+  const hist = loadHistory();
+  const el = document.getElementById('historyList');
+  if(!hist.length){ el.innerHTML='<span class="muted">Belum ada riwayat.</span>'; }
+  else{
+    el.innerHTML = hist.map(h=>`<div class="history-item"><span>${GAME_TYPES[h.gameType].icon} ${GAME_TYPES[h.gameType].label} · ${CATEGORIES[h.category].label} · ${h.participantCount} anak</span><span>Skor tertinggi: ${h.topScore} ⭐</span></div>`).join('');
+  }
+}
+
+function renderGameTypeGrid(){
+  const grid = document.getElementById('gameTypeGrid');
+  grid.innerHTML = Object.entries(GAME_TYPES).map(([key,g])=>
+    `<div class="opt-card" id="gtype-${key}" onclick="selectGameType('${key}')"><span class="emoji">${g.icon}</span>${g.label}<div class="desc">${g.desc}</div></div>`
+  ).join('');
+}
+function selectGameType(key){
+  App.selectedGameType = key;
+  App.selectedCategory = null;
+  document.querySelectorAll('#gameTypeGrid .opt-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('gtype-'+key).classList.add('selected');
+  renderCategoryGridForType(key);
+  updateCreateBtn();
+}
+function renderCategoryGridForType(gtKey){
+  const grid = document.getElementById('categoryGrid');
+  const keys = GAME_TYPES[gtKey].categories;
+  grid.innerHTML = keys.map(key=>{
+    const c = CATEGORIES[key];
+    return `<div class="opt-card" id="cat-${key}" onclick="selectCategory('${key}')"><span class="emoji">${c.icon}</span>${c.label}</div>`;
+  }).join('');
+}
+function selectCategory(key){
+  App.selectedCategory=key;
+  document.querySelectorAll('#categoryGrid .opt-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('cat-'+key).classList.add('selected');
+  updateCreateBtn();
+}
+function updateCreateBtn(){
+  document.getElementById('createRoomBtn').disabled = !(App.selectedGameType && App.selectedCategory);
+}
+
+async function createRoomFlow(){
+  const btn=document.getElementById('createRoomBtn');
+  btn.disabled=true; btn.textContent='Membuat ruangan…';
+  let code, existing, tries=0;
+  do{ code=genCode(); existing=await getRoom(code); tries++; } while(existing && tries<8);
+
+  let room;
+  if(App.selectedGameType==='memori'){
+    const cards = buildMemoryCards(App.selectedCategory, 6);
+    room = {
+      code, teacherName:App.teacherName, gameType:'memori', categoryKey:App.selectedCategory,
+      status:'waiting', memoryCards:cards, timeLimitSec:90, gameStartTime:null,
+      participants:{}, createdAt:Date.now()
+    };
+  } else {
+    const questions = App.selectedCategory==='hitung' ? buildCountingQuestions(5) : buildQuestions(App.selectedCategory, 5);
+    room = {
+      code, teacherName:App.teacherName, gameType:App.selectedGameType, categoryKey:App.selectedCategory,
+      status:'waiting', currentIndex:0, questions,
+      participants:{}, questionStartTime:null, createdAt:Date.now()
+    };
+  }
+  await setRoom(code, room);
+  App.roomCode = code;
+  btn.disabled=false; btn.textContent='Buat Ruangan 🎟️';
+  enterLobby(room);
+}
+
+/* ============ TEACHER: LOBBY ============ */
+function enterLobby(room){
+  document.getElementById('lobbyCode').textContent = room.code;
+  document.getElementById('lobbyCategoryTheme').textContent = GAME_TYPES[room.gameType].icon+' '+GAME_TYPES[room.gameType].label+' · '+CATEGORIES[room.categoryKey].icon+' '+CATEGORIES[room.categoryKey].label;
+  showScreen('screen-teacher-lobby');
+  listenRoom(App.roomCode, room=>{
+    if(!room) return;
+    App.currentRoom = room;
+    const entries = Object.entries(room.participants||{});
+    document.getElementById('lobbyCount').textContent = entries.length+' anak';
+    const list = document.getElementById('lobbyParticipants');
+    list.innerHTML = entries.length? entries.map(([id,p])=>`<span class="chip">🧒 ${p.name}</span>`).join('') : '<span class="muted">Menunggu anak-anak bergabung…</span>';
+    document.getElementById('startGameBtn').disabled = entries.length===0;
+  });
+}
+function copyRoomCode(){
+  const code=App.roomCode;
+  if(navigator.clipboard){ navigator.clipboard.writeText(code).catch(()=>{}); }
+  const b=event.target; const old=b.textContent; b.textContent='Tersalin ✓'; setTimeout(()=>b.textContent=old,1200);
+}
+function cancelToDashboard(){ stopSync(); goDashboard(); }
+
+async function handleStartGame(){
+  const room = App.currentRoom;
+  if(room && room.gameType==='memori'){
+    await updateRoom(App.roomCode, { status:'playing', gameStartTime: firebase.database.ServerValue.TIMESTAMP });
+  } else {
+    await updateRoom(App.roomCode, { status:'question', currentIndex:0, questionStartTime: firebase.database.ServerValue.TIMESTAMP });
+  }
+  App.autoEndTriggered = false;
+  enterTeacherPlay();
+}
+
+/* ============ TEACHER: PLAY CONTROL ============ */
+function renderVisual(container, q){
+  let html='';
+  if(q.type==='emoji') html = `<div class="visual-emoji">${q.visual}</div>`;
+  else if(q.type==='number') html = `<div class="visual-number">${q.visual}</div>`;
+  else if(q.type==='color') html = `<div class="visual-color" style="background:${q.visual}"></div>`;
+  else if(q.type==='shape') html = `<div class="shape shape-${q.visual}"></div>`;
+  else if(q.type==='count') html = `<div class="visual-count-grid">${[...q.visual].map(c=>`<span>${c}</span>`).join('')}</div>`;
+  container.innerHTML = html;
+}
+
+function enterTeacherPlay(){
+  document.getElementById('teacherPlayCode').textContent = App.roomCode;
+  showScreen('screen-teacher-play');
+  listenRoom(App.roomCode, room=>{
+    if(!room) return;
+    App.currentRoom = room;
+    if(room.status==='ended'){ finishTeacherResults(room); return; }
+    if(room.gameType==='memori'){ renderTeacherMemoryStatus(room); }
+    else { renderTeacherQuestionStatus(room); }
+  });
+}
+function renderTeacherQuestionStatus(room){
+  document.getElementById('teacherQuizPanel').style.display='';
+  document.getElementById('teacherMemoryPanel').style.display='none';
+  document.getElementById('teacherNextBtn').style.display='';
+  const q = room.questions[room.currentIndex];
+  document.getElementById('teacherQProgress').textContent = `Soal ${room.currentIndex+1}/${room.questions.length}`;
+  document.getElementById('teacherQPrompt').textContent = q.prompt;
+  renderVisual(document.getElementById('teacherQVisual'), q);
+  const balloonClass = room.gameType==='balon' ? ' balloon-btn' : '';
+  const optsEl = document.getElementById('teacherQOptions');
+  optsEl.innerHTML = q.options.map((opt,i)=> `<div class="answer-btn${balloonClass}" style="cursor:default;">${opt}${i===q.correctIndex?' ✓':''}</div>`).join('');
+  const entries = Object.entries(room.participants||{});
+  const answeredCount = entries.filter(([id,p])=> p.answered && p.answered[room.currentIndex]!==undefined).length;
+  document.getElementById('teacherAnsweredCount').textContent = `${answeredCount}/${entries.length} menjawab`;
+  document.getElementById('teacherNextBtn').textContent = (room.currentIndex+1>=room.questions.length) ? 'Lihat Hasil Akhir 🏁' : 'Soal Berikutnya ➡️';
+}
+function renderTeacherMemoryStatus(room){
+  document.getElementById('teacherQuizPanel').style.display='none';
+  document.getElementById('teacherMemoryPanel').style.display='';
+  document.getElementById('teacherNextBtn').style.display='none';
+  document.getElementById('teacherQProgress').textContent = 'Kartu Memori';
+  const entries = Object.entries(room.participants||{});
+  const finishedCount = entries.filter(([id,p])=>p.finished).length;
+  document.getElementById('teacherAnsweredCount').textContent = `${finishedCount}/${entries.length} selesai`;
+  document.getElementById('teacherMemoryStatusText').textContent = `${finishedCount}/${entries.length} anak sudah menyelesaikan kartu memori`;
+  const total = (room.timeLimitSec||90)*1000;
+  const startTime = room.gameStartTime || Date.now();
+  const elapsed = Date.now()-startTime;
+  const pct = Math.max(0, Math.min(100, 100*(1-elapsed/total)));
+  document.getElementById('teacherMemoryTimerBar').style.width = pct+'%';
+  if((pct<=0 || (entries.length>0 && finishedCount===entries.length)) && !App.autoEndTriggered){
+    App.autoEndTriggered = true;
+    handleEndGame();
+  }
+}
+async function handleNextQuestion(){
+  const room = App.currentRoom;
+  if(!room) return;
+  if(room.currentIndex+1 >= room.questions.length){
+    await updateRoom(App.roomCode, {status:'ended'});
+  } else {
+    await updateRoom(App.roomCode, {status:'question', currentIndex: room.currentIndex+1, questionStartTime: firebase.database.ServerValue.TIMESTAMP});
+  }
+}
+async function handleEndGame(){
+  await updateRoom(App.roomCode, {status:'ended'});
+}
+function finishTeacherResults(room){
+  stopSync();
+  const entries = Object.entries(room.participants||{});
+  const ranked = entries.map(([id,p])=>({id, name:p.name, score:p.score||0})).sort((a,b)=>b.score-a.score);
+  document.getElementById('teacherResultsTable').innerHTML = resultsTableHTML(ranked);
+  saveHistory({
+    gameType:room.gameType, category:room.categoryKey,
+    participantCount:entries.length,
+    topScore: ranked.length? ranked[0].score : 0,
+    date:Date.now()
+  });
+  showScreen('screen-teacher-results');
+}
+function rankBadge(i){ return i===0?'🏆':i===1?'🥈':i===2?'🥉':'🌟'; }
+function resultsTableHTML(ranked, highlightId){
+  if(!ranked.length) return '<tr><td colspan="2" class="muted">Belum ada peserta.</td></tr>';
+  return '<tr><th>Peringkat</th><th style="text-align:right;">Skor</th></tr>' + ranked.map((r,i)=>
+    `<tr><td><span class="rank-badge">${rankBadge(i)}</span>${r.id===highlightId? ('<strong>'+r.name+' (kamu)</strong>') : r.name}</td><td>${r.score} ⭐</td></tr>`
+  ).join('');
+}
+
+/* ============ KID: JOIN ============ */
+async function handleKidJoin(){
+  const codeRaw = document.getElementById('kidCodeInput').value.trim().toUpperCase();
+  const name = document.getElementById('kidNameInput').value.trim();
+  const err = document.getElementById('kidJoinError'); err.innerHTML='';
+  if(!codeRaw || !name){ err.innerHTML='<div class="error-msg">Isi kode ruangan dan nama kamu ya!</div>'; return; }
+  const room = await getRoom(codeRaw);
+  if(!room){ err.innerHTML='<div class="error-msg">Kode ruangan tidak ditemukan. Coba cek lagi ya.</div>'; return; }
+  if(room.status!=='waiting'){ err.innerHTML='<div class="error-msg">Permainan sudah dimulai, minta gurumu membuat ruangan baru.</div>'; return; }
+  const nameTaken = Object.values(room.participants||{}).some(p=>p.name===name);
+  if(nameTaken){ err.innerHTML='<div class="error-msg">Nama itu sudah dipakai, coba nama lain.</div>'; return; }
+  const kidId = genId();
+  await updateRoom(codeRaw, { ['participants/'+kidId]: { name, score:0, answered:{} } });
+  App.roomCode = codeRaw; App.kidId = kidId; App.kidName = name; App.role='kid'; App.answeredThisQ=false; App.lastKnownIndex=-1; App.memory=null;
+  document.getElementById('kidWaitName').textContent = name;
+  showScreen('screen-kid-wait');
+  startKidListener();
+}
+
+function startKidListener(){
+  listenRoom(App.roomCode, room=>{
+    if(!room) return;
+    App.currentRoom = room;
+    if(room.status==='waiting'){
+      const entries = Object.entries(room.participants||{}).filter(([id])=>id!==App.kidId);
+      const el = document.getElementById('kidWaitParticipants');
+      if(el){ el.innerHTML = entries.length? entries.map(([id,p])=>`<span class="chip">🧒 ${p.name}</span>`).join('') : '<span class="muted">Kamu yang pertama!</span>'; }
+    } else if(room.status==='question'){
+      if(room.currentIndex !== App.lastKnownIndex){
+        App.lastKnownIndex = room.currentIndex;
+        App.answeredThisQ = false;
+        enterKidQuestion(room);
+      }
+    } else if(room.status==='playing' && room.gameType==='memori'){
+      if(!App.memoryStarted){
+        App.memoryStarted = true;
+        enterKidMemory(room);
+      }
+    } else if(room.status==='ended'){
+      enterKidResults(room);
+    }
+  });
+}
+
+/* ============ KID: PLAY (KUIS/BALON) ============ */
+function enterKidQuestion(room){
+  const q = room.questions[room.currentIndex];
+  const myScore = (room.participants && room.participants[App.kidId]) ? room.participants[App.kidId].score : 0;
+  document.getElementById('kidScorePill').textContent = '⭐ '+myScore;
+  document.getElementById('kidQPrompt').textContent = q.prompt;
+  renderVisual(document.getElementById('kidQVisual'), q);
+  const balloonClass = room.gameType==='balon' ? ' balloon-btn' : '';
+  const optsEl = document.getElementById('kidQOptions');
+  optsEl.innerHTML = q.options.map((opt,i)=> `<button class="answer-btn${balloonClass}" onclick="handleKidAnswer(${i})">${opt}</button>`).join('');
+  showScreen('screen-kid-play');
+  startKidTimer(room, q);
+}
+function startKidTimer(room, q){
+  if(App.timerTick) clearInterval(App.timerTick);
+  const bar = document.getElementById('kidTimerBar');
+  const total = q.timeLimit*1000;
+  const startTime = room.questionStartTime || Date.now();
+  const update = ()=>{
+    const elapsed = Date.now() - startTime;
+    const pct = Math.max(0, Math.min(100, 100*(1-elapsed/total)));
+    bar.style.width = pct+'%';
+    if(pct<=0 && !App.answeredThisQ){
+      document.querySelectorAll('#kidQOptions .answer-btn').forEach(b=>b.disabled=true);
+    }
+  };
+  update();
+  App.timerTick = setInterval(update, 200);
+}
+async function handleKidAnswer(optIndex){
+  if(App.answeredThisQ) return;
+  App.answeredThisQ = true;
+  document.querySelectorAll('#kidQOptions .answer-btn').forEach(b=>b.disabled=true);
+  const room = App.currentRoom;
+  if(!room) return;
+  const qIndex = room.currentIndex;
+  const q = room.questions[qIndex];
+  const p = (room.participants && room.participants[App.kidId]) || {score:0};
+  if(p.answered && p.answered[qIndex]!==undefined) return;
+  const correct = optIndex === q.correctIndex;
+  const startTime = room.questionStartTime || Date.now();
+  const elapsed = Date.now() - startTime;
+  const remainRatio = Math.max(0, (q.timeLimit*1000 - elapsed) / (q.timeLimit*1000));
+  const points = correct ? Math.round(100 + remainRatio*50) : 0;
+  const newScore = (p.score||0) + points;
+  await updateRoom(App.roomCode, {
+    ['participants/'+App.kidId+'/answered/'+qIndex]: { optIndex, correct, points },
+    ['participants/'+App.kidId+'/score']: newScore
+  });
+
+  document.querySelectorAll('#kidQOptions .answer-btn').forEach((b,i)=>{
+    if(i===q.correctIndex) b.classList.add('correct');
+    else if(i===optIndex) b.classList.add('wrong');
+  });
+  document.getElementById('kidFeedbackEmoji').textContent = correct? '✅':'😊';
+  document.getElementById('kidFeedbackText').textContent = correct? 'Benar sekali!' : 'Yuk coba lagi di soal berikutnya!';
+  document.getElementById('kidFeedbackPoints').textContent = correct? ('+'+points+' ⭐') : '+0 ⭐';
+  document.getElementById('kidScorePill').textContent = '⭐ '+newScore;
+  setTimeout(()=>{ if(App.role==='kid') showScreen('screen-kid-feedback'); }, 500);
+}
+
+/* ============ KID: PLAY (MEMORI) ============ */
+function enterKidMemory(room){
+  App.memory = { cards: room.memoryCards.slice(), flipped: [], matched: [], startTime: room.gameStartTime||Date.now(), finished:false, lock:false };
+  document.getElementById('kidMemoryDoneMsg').style.display='none';
+  document.getElementById('kidMemoryGrid').style.display='';
+  renderMemoryGrid();
+  showScreen('screen-kid-memory');
+  startMemoryTimer(room);
+}
+function renderMemoryGrid(){
+  const m = App.memory;
+  const grid = document.getElementById('kidMemoryGrid');
+  grid.innerHTML = m.cards.map((val,i)=>{
+    const isMatched = m.matched.includes(i);
+    const isOpen = m.flipped.includes(i) || isMatched;
+    return `<div class="memory-card ${isMatched?'matched':(isOpen?'open':'')}" onclick="flipMemoryCard(${i})">${isOpen? val : '❓'}</div>`;
+  }).join('');
+}
+function flipMemoryCard(i){
+  const m = App.memory;
+  if(!m || m.lock || m.finished) return;
+  if(m.flipped.includes(i) || m.matched.includes(i)) return;
+  m.flipped.push(i);
+  renderMemoryGrid();
+  if(m.flipped.length===2){
+    m.lock = true;
+    const [a,b] = m.flipped;
+    if(m.cards[a]===m.cards[b]){
+      m.matched.push(a,b);
+      m.flipped = [];
+      m.lock = false;
+      renderMemoryGrid();
+      if(m.matched.length === m.cards.length){ finishMemory(true); }
+    } else {
+      setTimeout(()=>{ m.flipped=[]; m.lock=false; renderMemoryGrid(); }, 700);
+    }
+  }
+}
+function startMemoryTimer(room){
+  if(App.timerTick) clearInterval(App.timerTick);
+  const bar = document.getElementById('kidMemoryTimerBar');
+  const total = (room.timeLimitSec||90)*1000;
+  const startTime = room.gameStartTime || Date.now();
+  const update = ()=>{
+    const elapsed = Date.now()-startTime;
+    const pct = Math.max(0, Math.min(100, 100*(1-elapsed/total)));
+    if(bar) bar.style.width = pct+'%';
+    if(pct<=0 && App.memory && !App.memory.finished){ finishMemory(false); }
+  };
+  update();
+  App.timerTick = setInterval(update, 200);
+}
+async function finishMemory(completed){
+  const m = App.memory;
+  if(!m || m.finished) return;
+  m.finished = true;
+  if(App.timerTick){ clearInterval(App.timerTick); App.timerTick=null; }
+  const totalPairs = m.cards.length/2;
+  const matchedPairs = m.matched.length/2;
+  const elapsedMs = Date.now()-m.startTime;
+  const room = App.currentRoom;
+  const timeLimitMs = ((room && room.timeLimitSec)||90)*1000;
+  const remainRatio = Math.max(0, (timeLimitMs-elapsedMs)/timeLimitMs);
+  const score = Math.round(matchedPairs*50 + (completed? remainRatio*100 : 0));
+  await updateRoom(App.roomCode, {
+    ['participants/'+App.kidId+'/score']: score,
+    ['participants/'+App.kidId+'/finished']: true,
+    ['participants/'+App.kidId+'/completedMs']: elapsedMs
+  });
+  document.getElementById('kidMemoryGrid').style.display='none';
+  const msg = document.getElementById('kidMemoryDoneMsg');
+  msg.style.display='';
+  msg.innerHTML = `<div style="font-size:60px;">${completed?'🎉':'⏰'}</div><h2>${completed? 'Selesai!':'Waktu Habis!'}</h2><p class="muted">Kamu menemukan ${matchedPairs}/${totalPairs} pasangan · Skor: ${score} ⭐</p><p class="muted waiting-dots">Menunggu teman lain selesai<span>.</span><span>.</span><span>.</span></p>`;
+}
+
+/* ============ KID: RESULTS ============ */
+function enterKidResults(room){
+  stopSync();
+  const entries = Object.entries(room.participants||{});
+  const ranked = entries.map(([id,p])=>({id, name:p.name, score:p.score||0})).sort((a,b)=>b.score-a.score);
+  document.getElementById('kidResultsTable').innerHTML = resultsTableHTML(ranked, App.kidId);
+  const myRank = ranked.findIndex(r=>r.id===App.kidId);
+  const myScore = myRank>=0? ranked[myRank].score : 0;
+  const badge = rankBadge(myRank>=0?myRank:99);
+  const starCount = Math.max(1, Math.min(5, Math.round(myScore/150)));
+  document.getElementById('kidCertificate').innerHTML = `
+    <div style="font-size:44px;">${badge}</div>
+    <h2>Sertifikat Pemain Ceria</h2>
+    <div class="name">${App.kidName}</div>
+    <p class="muted">${GAME_TYPES[room.gameType].icon} ${GAME_TYPES[room.gameType].label} · ${CATEGORIES[room.categoryKey].icon} ${CATEGORIES[room.categoryKey].label}</p>
+    <div class="stars">${'⭐'.repeat(starCount)}</div>
+    <p class="muted">Total skor: ${myScore}</p>
+  `;
+  showScreen('screen-kid-results');
+}
+
+/* enter code prefilled from URL, e.g. ?code=ABCDE */
+(function prefillFromURL(){
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if(code){
+    window.addEventListener('DOMContentLoaded', ()=>{
+      goKidJoin();
+      document.getElementById('kidCodeInput').value = code.toUpperCase();
+    });
+  }
+})();
+</script>
+</body>
+</html>
